@@ -5,7 +5,7 @@
     <groupId>org.thingsboard</groupId>
     <artifactId>tbel</artifactId>
     <packaging>jar</packaging>
-    <version>1.2.5</version>
+    <version>1.2.6</version>
 
     <name>tbel</name>
     <url>https://thingsboard.io/</url>
@@ -256,7 +256,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-report-plugin</artifactId>
-                <version>2.8.1</version>
+                <version>3.5.2</version>
             </plugin>
         </plugins>
     </reporting>

@@ -11,33 +11,25 @@ import java.util.stream.Collectors;
 
 public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObject {
 
-    private static final Comparator stringCompDesc = new Comparator() {
-        public int compare(Object o1, Object o2) {
-            String first = String.valueOf(o1);
-            String second = String.valueOf(o2);
-            return second.compareTo(first);
-        }
+    private static final Comparator STRING_COMP_DESC = (o1, o2) -> {
+        String first = String.valueOf(o1);
+        String second = String.valueOf(o2);
+        return second.compareTo(first);
     };
-    private static final Comparator numericCompAsc = new Comparator() {
-        public int compare(Object o1, Object o2) {
-            Double first = Double.parseDouble(String.valueOf(o1));
-            Double second = Double.parseDouble(String.valueOf(o2));
-            return first.compareTo(second);
-        }
+    private static final Comparator NUMERIC_COMP_ASC = (o1, o2) -> {
+        Double first = Double.parseDouble(String.valueOf(o1));
+        Double second = Double.parseDouble(String.valueOf(o2));
+        return first.compareTo(second);
     };
-    private static final Comparator numericCompDesc = new Comparator() {
-        public int compare(Object o1, Object o2) {
-            Double first = Double.parseDouble(String.valueOf(o1));
-            Double second = Double.parseDouble(String.valueOf(o2));
-            return second.compareTo(first);
-        }
+    private static final Comparator NUMERIC_COMP_DESC = (o1, o2) -> {
+        Double first = Double.parseDouble(String.valueOf(o1));
+        Double second = Double.parseDouble(String.valueOf(o2));
+        return second.compareTo(first);
     };
-
     private final ExecutionContext executionContext;
-
     private final int id;
-
     private long memorySize = 0;
+    private boolean unmodifiable = false;
 
     public ExecutionArrayList(ExecutionContext executionContext) {
         this.executionContext = executionContext;
@@ -77,6 +69,7 @@ public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObje
 
     @Override
     public boolean addAll(Collection<? extends E> c) {
+        checkModifiable();
         boolean res = super.addAll(c);
         int i = c.size();
         for (E val : c) {
@@ -87,6 +80,7 @@ public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObje
 
     @Override
     public boolean addAll(int index, Collection<? extends E> c) {
+        checkModifiable();
         boolean res = super.addAll(index, c);
         int i = index;
         for (E val : c) {
@@ -97,12 +91,14 @@ public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObje
 
     @Override
     public void add(int index, E e) {
+        checkModifiable();
         super.add(index, e);
         this.memorySize += this.executionContext.onValAdd(this, index, e);
     }
 
     @Override
     public boolean add(E e) {
+        checkModifiable();
         boolean res = super.add(e);
         this.memorySize += this.executionContext.onValAdd(this, size() - 1, e);
         return res;
@@ -110,6 +106,7 @@ public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObje
 
     @Override
     public E remove(int index) {
+        checkModifiable();
         E value = super.remove(index);
         this.memorySize -= this.executionContext.onValRemove(this, index, value);
         return value;
@@ -117,6 +114,7 @@ public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObje
 
     @Override
     public boolean remove(Object value) {
+        checkModifiable();
         int index = super.indexOf(value);
         if (index >= 0) {
             this.remove(index);
@@ -127,6 +125,7 @@ public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObje
 
     @Override
     public E set(int index, E element) {
+        checkModifiable();
         E oldValue = super.set(index, element);
         this.memorySize -= this.executionContext.onValRemove(this, index, oldValue);
         this.memorySize += this.executionContext.onValAdd(this, index, element);
@@ -185,10 +184,11 @@ public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObje
     }
 
     public void sort(boolean asc) {
+        checkModifiable();
         if (validateClazzInArrayIsOnlyString()) {
-            super.sort(asc ? null : stringCompDesc);
+            super.sort(asc ? null : STRING_COMP_DESC);
         } else {
-            super.sort(asc ? numericCompAsc : numericCompDesc);
+            super.sort(asc ? NUMERIC_COMP_ASC : NUMERIC_COMP_DESC);
         }
     }
 
@@ -203,6 +203,7 @@ public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObje
     }
 
     public void reverse() {
+        checkModifiable();
         Collections.reverse(this);
     }
 
@@ -216,6 +217,16 @@ public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObje
         ExecutionArrayList newList = this.slice();
         newList.addAll(c);
         return newList;
+    }
+
+    public ExecutionArrayList toUnmodifiable() {
+        ExecutionArrayList newList = this.slice();
+        newList.unmodifiable = true;
+        return newList;
+    }
+
+    public void unmodifiable() {
+        this.unmodifiable = true;
     }
 
     public List splice(int start) {
@@ -267,6 +278,7 @@ public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObje
     }
 
     public List fill(E value, int start, int end) {
+        checkModifiable();
         start = initStartIndex(start);
         end = initEndIndex(end);
 
@@ -279,7 +291,7 @@ public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObje
     }
 
     public boolean validateClazzInArrayIsOnlyString() {
-        return !super.stream().anyMatch(e -> !(e instanceof String));
+        return super.stream().allMatch(e -> e instanceof String);
     }
 
     private int initStartIndex(int start) {
@@ -292,5 +304,9 @@ public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObje
         return end < -this.size() ? 0 :
                 end < 0 ? end + this.size() :
                         Math.min(end, this.size());
+    }
+
+    private void checkModifiable() {
+        if (unmodifiable) throw new UnsupportedOperationException("This ExecutionArrayList is unmodifiable");
     }
 }

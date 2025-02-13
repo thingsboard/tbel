@@ -3743,6 +3743,118 @@ public class TbExpressionsTest extends TestCase {
         assertEquals(expected, result.toString());
     }
 
+    /**
+     *      ExecutionArrayList: unmodifiable/toUnmodifiable
+     *      add
+     *      addAll(Collection<? extends E> c)
+     *      addAll(int index, Collection<? extends E> c) {
+     *      public boolean add(E e) {
+     *      add(int index, E e) {
+     *      remove(int index)
+     *      remove(Object value)
+     *      set(int index, E element)
+     *      sort(),
+     *      sort(boolean asc)
+     *      reverse()
+     *      fill
+     */
+    public void testExecutionArrayList_Unmodifiable_Add() {
+        String errorArray = "This ExecutionArrayList is unmodifiable";
+        String body = "var msg = {};\n" +
+                "var original = [];\n" +
+                "original.unmodifiable;\n" +
+                "original.add(0x35);\n" +
+                "msg.result = original;\n" +
+                "return {msg: msg};";
+        try {
+            executeScript(body);
+            fail("Should throw CompileException");
+        } catch (CompileException e) {
+            assertTrue(e.getMessage().contains(errorArray));
+        }
+        body = "var msg = {};\n" +
+                "var original = [];\n" +
+                "original.add(0x67);\n" +
+                "original.unmodifiable;\n" +
+                "original.add(0x35);\n" +
+                "msg.result = original;\n" +
+                "return {msg: msg};";
+        try {
+            executeScript(body);
+            fail("Should throw CompileException");
+        } catch (CompileException e) {
+            assertTrue(e.getMessage().contains(errorArray));
+        }
+        body = "var msg = {};\n" +
+                "var original = [1, 2, 3, 4, 5];\n" +
+                "original.add(0x67);\n" +
+                "var modifiable = original.toUnmodifiable;\n" +
+                "modifiable.add(0x35);\n" +
+                "msg.result = modifiable;\n" +
+                "return {msg: msg};";
+        try {
+            executeScript(body);
+            fail("Should throw CompileException");
+        } catch (CompileException e) {
+            assertTrue(e.getMessage().contains(errorArray));
+        }
+    }
+
+    /**
+     *      ExecutionHashMap: unmodifiable/toUnmodifiable
+     *      put(K key, V value)
+     *      Set<Entry<K, V>> entrySet()
+     *      putAll(Map<? extends K, ? extends V> m)
+     *      putIfAbsent(K key, V value)
+     *      replace(K key, V oldValue, V newValue)
+     *      replace(K key, V value)
+     *      remove(Object key)
+     *      sortByValue
+     *      sortByKey
+     *      sortMapByValue(Map<K, V> map, boolean asc)
+     */
+
+    public void testExecutionHashMap_Unmodifiable_Put() {
+        String errorArray = "This ExecutionHashMap is unmodifiable";
+        String body = "var msg = {};\n" +
+                "var original = {};\n" +
+                "original.unmodifiable;\n" +
+                "original.putIfAbsent(\"temperature1\", 73);\n" +
+                "msg.result = original;\n" +
+                "return {msg: msg};";
+        try {
+            executeScript(body);
+            fail("Should throw CompileException");
+        } catch (CompileException e) {
+            assertTrue(e.getMessage().contains(errorArray));
+        }
+        body = "var msg = {};\n" +
+                "var original = {};\n" +
+                "original.humidity = 73;\n" +
+                "original.unmodifiable;\n" +
+                "original.putIfAbsent(\"temperature1\", 73);\n" +
+                "msg.result = original;\n" +
+                "return {msg: msg};";
+        try {
+            executeScript(body);
+            fail("Should throw CompileException");
+        } catch (CompileException e) {
+            assertTrue(e.getMessage().contains(errorArray));
+        }body = "var msg = {};\n" +
+                "var original = {\"temperature\": 42, \"nested\" : \"508\"};\n" +
+                "original.humidity = 73;\n" +
+                "original.unmodifiable;\n" +
+                "original.putIfAbsent(\"temperature1\", 73);\n" +
+                "msg.result = original;\n" +
+                "return {msg: msg};";
+        try {
+            executeScript(body);
+            fail("Should throw CompileException");
+        } catch (CompileException e) {
+            assertTrue(e.getMessage().contains(errorArray));
+        }
+    }
+
     private Object executeScript(String ex, Map vars, ExecutionContext executionContext, long timeoutMs) throws Exception {
         final CountDownLatch countDown = new CountDownLatch(1);
         AtomicReference<Object> result = new AtomicReference<>();
