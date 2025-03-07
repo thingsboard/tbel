@@ -299,4 +299,8 @@ public class ExecutionArrayList<E> extends ArrayList<E> implements ExecutionObje
             return false;
         }
     }
+
+    public boolean validateClazzInArrayIsOnlyString() {
+        return !super.stream().anyMatch(e -> !(e instanceof String));
+    }
 }

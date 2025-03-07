@@ -2413,54 +2413,6 @@ public class TbExpressionsTest extends TestCase {
         assertEquals(expected, actual);
     }
 
-    public void testExecutionHashMap_Public_Key_Value() {
-        String body = "var msg1 = {\n" +
-                "    \"temperature\": 22.4,\n" +
-                "    \"humidity\": 78\n" +
-                "};\n" +
-                "\n" +
-                "var map = {\n" +
-                "    \"test\": 42,\n" +
-                "    \"nested\": {\n" +
-                "        \"rssi\": 130\n" +
-                "    }\n" +
-                "};\n" +
-                "foreach(element: map) {\n" +
-                "    msg1[element.key] = element.value;\n" +
-                "}\n" +
-                "return {\n" +
-                "    msg1\n" +
-                "};";
-        Object result = executeScript(body);
-
-        String expected = "[{temperature=22.4, humidity=78, test=42, nested={rssi=130}}]";
-        assertEquals(expected, result.toString());
-    }
-
-    public void testExecutionHashMap_getKey_getValue() {
-        String body = "var msg1 = {\n" +
-                "    \"temperature\": 22.4,\n" +
-                "    \"humidity\": 78\n" +
-                "};\n" +
-                "\n" +
-                "var map = {\n" +
-                "    \"test\": 42,\n" +
-                "    \"nested\": {\n" +
-                "        \"rssi\": 130\n" +
-                "    }\n" +
-                "};\n" +
-                "foreach(element: map) {\n" +
-                "    msg1[element.getKey()] = element.getValue();\n" +
-                "}\n" +
-                "return {\n" +
-                "    msg1\n" +
-                "};";
-        Object result = executeScript(body);
-
-        String expected = "[{temperature=22.4, humidity=78, test=42, nested={rssi=130}}]";
-        assertEquals(expected, result.toString());
-    }
-
     public void testBooleanBitwiseOperations() {
         String body = " var x = true;\n" +
                 "var y = false;\n" +

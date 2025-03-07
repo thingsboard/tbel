@@ -93,7 +93,7 @@ public class TbUtilsExpressionsTest extends TestCase {
         }
     }
 
-    public void testSHexToBytes_InFunction_Ok() throws Exception {
+    public void testHexToBytes_InFunction_Ok() throws Exception {
         String scriptBody = "var data = frm();\n" +
                 "function frm(){\n" +
                 "    var out = {};\n" +
