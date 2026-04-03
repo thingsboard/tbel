@@ -548,6 +548,63 @@ public class TbExpressionsTest extends TestCase {
         assertEquals(5, res);
     }
 
+    public void testForbiddenUtilSubpackageAccess() {
+        // SSRF via SocketHandler
+        try {
+            executeScript("new java.util.logging.SocketHandler(\"127.0.0.1\", 9999)");
+            fail("Should throw CompileException for java.util.logging.SocketHandler");
+        } catch (CompileException e) {
+            assertTrue(e.getMessage().contains("could not resolve class: java.util.logging.SocketHandler"));
+        }
+
+        // File write via FileHandler
+        try {
+            executeScript("new java.util.logging.FileHandler(\"/tmp/test.log\")");
+            fail("Should throw CompileException for java.util.logging.FileHandler");
+        } catch (CompileException e) {
+            assertTrue(e.getMessage().contains("could not resolve class: java.util.logging.FileHandler"));
+        }
+
+        // File read via ZipFile
+        try {
+            executeScript("new java.util.zip.ZipFile(\"/tmp/test.zip\")");
+            fail("Should throw CompileException for java.util.zip.ZipFile");
+        } catch (CompileException e) {
+            assertTrue(e.getMessage().contains("could not resolve class: java.util.zip.ZipFile"));
+        }
+
+        // File read via JarFile
+        try {
+            executeScript("new java.util.jar.JarFile(\"/tmp/test.jar\")");
+            fail("Should throw CompileException for java.util.jar.JarFile");
+        } catch (CompileException e) {
+            assertTrue(e.getMessage().contains("could not resolve class: java.util.jar.JarFile"));
+        }
+
+        // System prefs read/write via Preferences
+        try {
+            executeScript("java.util.prefs.Preferences.userRoot()");
+            fail("Should throw CompileException for java.util.prefs.Preferences");
+        } catch (CompileException e) {
+            assertTrue(e.getMessage().contains("unresolvable property or identifier: java"));
+        }
+
+        // Service provider loading via spi
+        try {
+            executeScript("new java.util.spi.LocaleServiceProvider()");
+            fail("Should throw CompileException for java.util.spi.LocaleServiceProvider");
+        } catch (CompileException e) {
+            assertTrue(e.getMessage().contains("could not resolve class: java.util.spi.LocaleServiceProvider"));
+        }
+
+        // Verify legitimate java.util classes still work
+        Object res = executeScript("m = {1, 2, 3}; m.size()");
+        assertEquals(3, res);
+
+        res = executeScript("m = {key: \"val\"}; m.get(\"key\")");
+        assertEquals("val", res);
+    }
+
     public void testForbidImport() {
         try {
             executeScript("import java.util.HashMap; m = new HashMap(); m.put('t', 10); m");
