@@ -37,6 +37,11 @@ public class SandboxedClassLoader extends URLClassLoader {
     public SandboxedClassLoader() {
         super(new URL[0], Thread.currentThread().getContextClassLoader());
         forbiddenPackages.add("java.util.concurrent");
+        forbiddenPackages.add("java.util.logging");
+        forbiddenPackages.add("java.util.zip");
+        forbiddenPackages.add("java.util.jar");
+        forbiddenPackages.add("java.util.prefs");
+        forbiddenPackages.add("java.util.spi");
         allowedPackages.add("java.util");
         AbstractParser.CLASS_LITERALS
                 .entrySet().stream().filter(entry -> !forbiddenClassLiterals.contains(entry.getKey()))
