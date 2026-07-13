@@ -605,6 +605,18 @@ public class TbExpressionsTest extends TestCase {
         assertEquals("val", res);
     }
 
+    public void testForbiddenFormatterFileWrite() {
+        String path = "/tmp/tbel_formatter_test.txt";
+        try {
+            executeScript("new java.util.Formatter(\"" + path + "\")");
+            fail("Should throw CompileException for java.util.Formatter");
+        } catch (CompileException e) {
+            assertTrue(e.getMessage().contains("could not resolve class: java.util.Formatter"));
+        } finally {
+            new java.io.File(path).delete();
+        }
+    }
+
     public void testForbidImport() {
         try {
             executeScript("import java.util.HashMap; m = new HashMap(); m.put('t', 10); m");
