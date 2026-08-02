@@ -1,3 +1,7 @@
+/*
+ * This file has been modified from the original MVEL source.
+ * See the project's Git history for details of the changes.
+ */
 package org.mvel2.tests.core;
 
 import java.lang.reflect.Array;
@@ -16,9 +20,8 @@ import static org.mvel2.tests.core.StaticMethodImportTests.CoreMatcher.is;
 
 /**
  * Classes ripped from hamcrest for purposes for testing
- * http://code.google.com/p/hamcrest/
- * hamcrest is licensed under "New BDS License"
- *
+ * https://github.com/hamcrest/JavaHamcrest
+ * hamcrest is licensed under the New BSD License.
  */
 public class StaticMethodImportTests {
 
