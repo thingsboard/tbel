@@ -1,0 +1,2 @@
+SPDX-FileCopyrightText: Copyright ${project.inceptionYear} ${owner}
+SPDX-License-Identifier: Apache-2.0
