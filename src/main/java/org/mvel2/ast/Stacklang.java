@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: Modifications Copyright (C) 2022-present ThingsBoard, Inc.
+ * This file has been modified from the original MVEL source.
+ * See the project's Git history for details of the changes.
+ */
 package org.mvel2.ast;
 
 import java.lang.reflect.Constructor;
