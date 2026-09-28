@@ -16,11 +16,8 @@
  * limitations under the License.
  */
 
-/*
- * SPDX-FileCopyrightText: Modifications Copyright (C) 2022-present ThingsBoard, Inc.
- * This file has been modified from the original MVEL source.
- * See the project's Git history for details of the changes.
- */
+// SPDX-FileCopyrightText: Modifications Copyright ThingsBoard, Inc.
+// SPDX-License-Identifier: Apache-2.0
 package org.mvel2;
 
 import org.mvel2.util.StringAppender;
