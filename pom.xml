@@ -114,12 +114,6 @@
                 </configuration>
             </plugin>
 
-            <!--
-                Scoped deliberately to ThingsBoard-authored files only. The rest of this tree is
-                upstream MVEL (Apache-2.0) and vendored ASM (BSD-3), whose headers must be preserved
-                verbatim; an unscoped run of license:format would overwrite them.
-                Add new ThingsBoard-authored files to the include list below.
-            -->
             <plugin>
                 <groupId>com.mycila</groupId>
                 <artifactId>license-maven-plugin</artifactId>
@@ -200,10 +194,6 @@
                         </goals>
                     </execution>
                 </executions>
-                <!--
-                    maven-javadoc-plugin does not package project resources, so the licence texts are
-                    staged into the javadoc output directory by maven-resources-plugin below.
-                -->
                 <configuration>
                     <doclint>-accessibility,-missing</doclint>
                 </configuration>
@@ -213,9 +203,8 @@
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>3.3.1</version>
                 <executions>
-                    <!-- Runs before javadoc:jar (package), so the texts are inside the javadoc jar too. -->
                     <execution>
-                        <id>copy-licences-into-javadoc</id>
+                        <id>copy-licenses-into-javadoc</id>
                         <phase>prepare-package</phase>
                         <goals>
                             <goal>copy-resources</goal>
