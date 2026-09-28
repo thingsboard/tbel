@@ -123,7 +123,7 @@
             <plugin>
                 <groupId>com.mycila</groupId>
                 <artifactId>license-maven-plugin</artifactId>
-                <version>5.1.1</version>
+                <version>5.1.2</version>
                 <configuration>
                     <licenseSets>
                         <licenseSet>
@@ -140,14 +140,15 @@
                                 <include>src/main/java/org/mvel2/execution/**</include>
                                 <include>src/main/java/org/mvel2/util/ArgsRepackUtil.java</include>
                                 <include>src/main/java/org/mvel2/util/TriFunction.java</include>
+                                <include>src/test/java/org/mvel2/tests/core/DynamicOptimizerPostIncrementTest.java</include>
+                                <include>src/test/java/org/mvel2/tests/core/TbExpressionsTest.java</include>
+                                <include>src/test/java/org/mvel2/tests/core/TbMapArrayListSetExpressionsTest.java</include>
+                                <include>src/test/java/org/mvel2/tests/core/TbUtilsExpressionsTest.java</include>
                             </includes>
                         </licenseSet>
                     </licenseSets>
-                    <properties>
-                        <owner>ThingsBoard, Inc.</owner>
-                    </properties>
                     <mapping>
-                        <java>JAVADOC_STYLE</java>
+                        <java>SINGLE_LINE_DOUBLESLASH_STYLE</java>
                     </mapping>
                 </configuration>
                 <executions>
