@@ -8,4 +8,4 @@ Published as `org.thingsboard:tbel`.
 
 TBEL is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the full license text.
 
-It also contains a vendored copy of the ASM bytecode library under `org/mvel2/asm`, inherited from MVEL and licensed under BSD-3-Clause — see `ASM-LICENSE`.
+It also contains a vendored copy of the ASM bytecode library under `org/mvel2/asm`, inherited from MVEL and licensed under the BSD 3-Clause License. See [ASM-LICENSE](ASM-LICENSE) for the full license text.
