@@ -5,7 +5,7 @@
     <groupId>org.thingsboard</groupId>
     <artifactId>tbel</artifactId>
     <packaging>jar</packaging>
-    <version>1.2.10</version>
+    <version>1.2.11</version>
 
     <name>tbel</name>
     <url>https://thingsboard.io/</url>
@@ -15,8 +15,8 @@
     </description>
     <licenses>
         <license>
-            <name>The Apache Software License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <name>Apache License 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -27,8 +27,8 @@
     </organization>
 
     <scm>
-        <connection>scm:git:git@github.com:thingsboard/tbel.git</connection>
-        <url>scm:git:git@github.com:thingsboard/tbel.git</url>
+        <connection>scm:git:https://github.com/thingsboard/tbel.git</connection>
+        <url>https://github.com/thingsboard/tbel</url>
         <developerConnection>scm:git:git@github.com:thingsboard/tbel.git</developerConnection>
     </scm>
     <issueManagement>
@@ -115,16 +115,51 @@
             </plugin>
 
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.3.0</version>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>5.1.2</version>
+                <configuration>
+                    <licenseSets>
+                        <licenseSet>
+                            <header>${basedir}/apache-license-header-template.txt</header>
+                            <includes>
+                                <include>src/main/java/org/mvel2/ExecutionContext.java</include>
+                                <include>src/main/java/org/mvel2/SandboxedClassLoader.java</include>
+                                <include>src/main/java/org/mvel2/SandboxedParserConfiguration.java</include>
+                                <include>src/main/java/org/mvel2/ScriptExecutionStoppedException.java</include>
+                                <include>src/main/java/org/mvel2/ScriptMemoryOverflowException.java</include>
+                                <include>src/main/java/org/mvel2/ast/BreakNode.java</include>
+                                <include>src/main/java/org/mvel2/ast/HasStatement.java</include>
+                                <include>src/main/java/org/mvel2/ast/SwitchNode.java</include>
+                                <include>src/main/java/org/mvel2/execution/**</include>
+                                <include>src/main/java/org/mvel2/util/ArgsRepackUtil.java</include>
+                                <include>src/main/java/org/mvel2/util/TriFunction.java</include>
+                                <include>src/test/java/org/mvel2/tests/core/DynamicOptimizerPostIncrementTest.java</include>
+                                <include>src/test/java/org/mvel2/tests/core/TbExpressionsTest.java</include>
+                                <include>src/test/java/org/mvel2/tests/core/TbMapArrayListSetExpressionsTest.java</include>
+                                <include>src/test/java/org/mvel2/tests/core/TbUtilsExpressionsTest.java</include>
+                            </includes>
+                        </licenseSet>
+                    </licenseSets>
+                    <mapping>
+                        <java>SINGLE_LINE_DOUBLESLASH_STYLE</java>
+                    </mapping>
+                </configuration>
                 <executions>
                     <execution>
+                        <id>check-license-headers</id>
+                        <phase>validate</phase>
                         <goals>
-                            <goal>test-jar</goal>
+                            <goal>check</goal>
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
                 <configuration>
                     <archive>
                         <manifestFile>META-INF/MANIFEST.MF</manifestFile>
@@ -143,7 +178,6 @@
                     <execution>
                         <goals>
                             <goal>jar</goal>
-                            <goal>test-jar</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -163,6 +197,32 @@
                 <configuration>
                     <doclint>-accessibility,-missing</doclint>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-licenses-into-javadoc</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/apidocs/META-INF</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${basedir}</directory>
+                                    <includes>
+                                        <include>LICENSE</include>
+                                        <include>ASM-LICENSE</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -243,6 +303,14 @@
                 <directory>.</directory>
                 <includes>
                     <include>build.properties</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>${basedir}</directory>
+                <targetPath>META-INF</targetPath>
+                <includes>
+                    <include>LICENSE</include>
+                    <include>ASM-LICENSE</include>
                 </includes>
             </resource>
             <resource>

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright ThingsBoard, Inc.
+// SPDX-License-Identifier: Apache-2.0
 package org.mvel2.execution;
 
 import org.mvel2.ExecutionContext;

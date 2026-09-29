@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Modifications Copyright ThingsBoard, Inc.
+// SPDX-License-Identifier: Apache-2.0
 package org.mvel2.tests.core;
 
 import java.awt.Dimension;

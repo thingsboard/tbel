@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Modifications Copyright ThingsBoard, Inc.
+// SPDX-License-Identifier: Apache-2.0
 package org.mvel2.integration.impl;
 
 import org.mvel2.integration.VariableResolver;
