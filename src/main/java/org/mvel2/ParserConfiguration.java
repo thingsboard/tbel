@@ -77,11 +77,19 @@ public class ParserConfiguration implements Serializable {
     this.interceptors = interceptors;
   }
 
+  /**
+   * Called by every method that changes this configuration. Subclasses that can become read-only override it
+   * to reject the change.
+   */
+  protected void checkMutable() {
+  }
+
   public HashSet<String> getPackageImports() {
     return packageImports;
   }
 
   public void setPackageImports(HashSet<String> packageImports) {
+    checkMutable();
     this.packageImports = packageImports;
   }
 
@@ -101,6 +109,7 @@ public class ParserConfiguration implements Serializable {
   }
 
   public void addPackageImport(String packageName) {
+    checkMutable();
     if (packageImports == null) packageImports = new LinkedHashSet<String>();
     packageImports.add(packageName);
     if (!addClassMemberStaticImports(packageName)) packageImports.add(packageName);
@@ -136,6 +145,7 @@ public class ParserConfiguration implements Serializable {
   }
 
   public void addAllImports(Map<String, Object> imports) {
+    checkMutable();
     if (imports == null) return;
 
     Object o;
@@ -192,13 +202,16 @@ public class ParserConfiguration implements Serializable {
   }
 
   public void addImport(String name, Class cls) {
+    checkMutable();
     this.imports.put(name, cls);
   }
   public void registerNonConvertableMethods(Class<?> clazz, Set<String> methods) {
+    checkMutable();
     this.nonConvertableMethods.put(clazz.getName(), methods);
   }
 
   public void addImport(String name, Proto proto) {
+    checkMutable();
     this.imports.put(name, proto);
   }
 
@@ -207,6 +220,7 @@ public class ParserConfiguration implements Serializable {
   }
 
   public void addImport(String name, MethodStub method) {
+    checkMutable();
     this.imports.put(name, method);
   }
 
@@ -215,6 +229,7 @@ public class ParserConfiguration implements Serializable {
   }
 
   public void setInterceptors(Map<String, Interceptor> interceptors) {
+    checkMutable();
     this.interceptors = interceptors;
   }
 
@@ -223,6 +238,7 @@ public class ParserConfiguration implements Serializable {
   }
 
   public void setImports(Map<String, Object> imports) {
+    checkMutable();
     if (imports == null) return;
 
     Object val;
@@ -255,15 +271,18 @@ public class ParserConfiguration implements Serializable {
   }
 
   public void setClassLoader(ClassLoader classLoader) {
+    checkMutable();
     this.classLoader = classLoader;
   }
 
   public void setAllImports(Map<String, Object> imports) {
+    checkMutable();
     this.imports.clear();
     if (imports != null) this.imports.putAll(imports);
   }
 
   public void setImports(HashMap<String, Object> imports) {
+    checkMutable();
     // TODO: this method is here for backward compatibility. Could it be removed/deprecated?
     setAllImports(imports);
   }
@@ -281,6 +300,7 @@ public class ParserConfiguration implements Serializable {
   }
 
   public void setAllowNakedMethCall(boolean allowNakedMethCall) {
+    checkMutable();
     this.allowNakedMethCall = allowNakedMethCall;
   }
 
@@ -289,6 +309,7 @@ public class ParserConfiguration implements Serializable {
   }
 
   public void setAllowBootstrapBypass(boolean allowBootstrapBypass) {
+    checkMutable();
     this.allowBootstrapBypass = allowBootstrapBypass;
   }
 

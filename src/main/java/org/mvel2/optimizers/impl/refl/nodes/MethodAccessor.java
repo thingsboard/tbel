@@ -20,6 +20,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package org.mvel2.optimizers.impl.refl.nodes;
 
+import org.mvel2.ParserContext;
 import org.mvel2.ExecutionContext;
 import org.mvel2.ScriptMemoryOverflowException;
 import org.mvel2.compiler.ExecutableStatement;
@@ -38,6 +39,7 @@ public class MethodAccessor extends InvokableAccessor {
   private int executionContextParamIndex = -1;
 
   public Object getValue(Object ctx, Object elCtx, VariableResolverFactory vars) {
+    ParserContext.checkReceiver(method, ctx);
     if (!coercionNeeded) {
       try {
         if (nextNode != null) {
@@ -49,7 +51,7 @@ public class MethodAccessor extends InvokableAccessor {
       }
       catch (IllegalArgumentException e) {
           if (ctx != null && method.getDeclaringClass() != ctx.getClass()) {
-              Method o = getBestCandidate(parameterTypes, method.getName(), ctx.getClass(), ctx.getClass().getMethods(), true);
+              Method o = ParserContext.checkRedispatch(getBestCandidate(parameterTypes, method.getName(), ctx.getClass(), ctx.getClass().getMethods(), true));
               if (o != null) {
                   return executeOverrideTarget(getWidenedTarget(o), ctx, elCtx, vars);
               }
@@ -79,8 +81,8 @@ public class MethodAccessor extends InvokableAccessor {
       catch (IllegalArgumentException e) {
         Object[] vs = executeAndCoerce(parameterTypes, elCtx, vars, false);
         Method newMeth;
-        if ((newMeth = getWidenedTarget(getBestCandidate(vs, method.getName(), ctx.getClass(),
-            ctx.getClass().getMethods(), false))) != null) {
+        if ((newMeth = getWidenedTarget(ParserContext.checkRedispatch(getBestCandidate(vs, method.getName(), ctx.getClass(),
+            ctx.getClass().getMethods(), false)))) != null) {
           return executeOverrideTarget(newMeth, ctx, elCtx, vars);
         }
         else {
@@ -229,12 +231,13 @@ public class MethodAccessor extends InvokableAccessor {
   }
 
   public Object setValue(Object ctx, Object elCtx, VariableResolverFactory variableFactory, Object value) {
+    ParserContext.checkReceiver(method, ctx);
     try {
       return nextNode.setValue(method.invoke(ctx, executeAll(elCtx, variableFactory, method)), elCtx, variableFactory, value);
     }
     catch (IllegalArgumentException e) {
       if (ctx != null && method.getDeclaringClass() != ctx.getClass()) {
-        Method o = getBestCandidate(parameterTypes, method.getName(), ctx.getClass(), ctx.getClass().getMethods(), true);
+        Method o = ParserContext.checkRedispatch(getBestCandidate(parameterTypes, method.getName(), ctx.getClass(), ctx.getClass().getMethods(), true));
         if (o != null) {
           return nextNode.setValue(executeOverrideTarget(o, ctx, elCtx, variableFactory), elCtx, variableFactory, value);
         }

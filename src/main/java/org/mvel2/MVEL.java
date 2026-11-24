@@ -946,12 +946,27 @@ public class MVEL {
   }
 
   public static Object executeTbExpression(final Object compiledExpression, final ExecutionContext ctx, Map vars) {
+    ParserContext.onSandboxedExecution();
     if(vars != null) {
       Map newVars = new HashMap();
       vars.forEach((k,v) -> newVars.put(k , ArgsRepackUtil.repack(ctx, v)));
       vars = newVars;
     }
-    return ArgsRepackUtil.unpack(executeExpression(compiledExpression, ctx, vars));
+    try {
+      return ArgsRepackUtil.unpack(executeExpression(compiledExpression, ctx, vars));
+    } catch (StackOverflowError e) {
+      throw new ScriptStackOverflowException("Maximum call stack size exceeded!");
+    } catch (RuntimeException e) {
+      // The stack can run out inside a method that the script calls: the error then arrives as the cause of
+      // whatever reports the failed call.
+      Throwable cause = e;
+      for (int depth = 0; cause != null && depth < 64; depth++, cause = cause.getCause()) {
+        if (cause instanceof StackOverflowError) {
+          throw new ScriptStackOverflowException("Maximum call stack size exceeded!");
+        }
+      }
+      throw e;
+    }
   }
 
   public static Object executeExpression(final Object compiledExpression, final Object ctx, final VariableResolverFactory resolverFactory) {

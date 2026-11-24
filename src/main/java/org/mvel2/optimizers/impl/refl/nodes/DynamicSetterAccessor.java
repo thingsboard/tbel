@@ -18,6 +18,7 @@
  */
 package org.mvel2.optimizers.impl.refl.nodes;
 
+import org.mvel2.ParserContext;
 import org.mvel2.compiler.AccessorNode;
 import org.mvel2.integration.VariableResolverFactory;
 
@@ -35,6 +36,7 @@ public class DynamicSetterAccessor implements AccessorNode {
   public static final Object[] EMPTY = new Object[0];
 
   public Object setValue(Object ctx, Object elCtx, VariableResolverFactory variableFactory, Object value) {
+    ParserContext.checkReceiver(method, ctx);
     try {
       return method.invoke(ctx, convert(value, targetType));
     }

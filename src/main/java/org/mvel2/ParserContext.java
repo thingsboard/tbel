@@ -29,6 +29,7 @@ import org.mvel2.compiler.Parser;
 import org.mvel2.integration.Interceptor;
 import org.mvel2.util.LineMapper;
 import org.mvel2.util.MethodStub;
+import org.mvel2.util.ParseTools;
 import org.mvel2.util.ReflectionUtil;
 
 import java.io.Serializable;
@@ -45,6 +46,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -61,8 +63,10 @@ import java.util.TreeSet;
  */
 public class ParserContext implements Serializable {
 
-  private static boolean sandboxedMode = false;
-  private static SandboxedParserConfiguration sandboxedParserConfiguration;
+  // Both are read by every thread that compiles or runs a script. The configuration is always assigned before
+  // the mode is switched on, so a thread that sees sandboxed mode also sees its configuration.
+  private static volatile boolean sandboxedMode = false;
+  private static volatile SandboxedParserConfiguration sandboxedParserConfiguration;
 
   private String sourceFile;
 
@@ -114,10 +118,38 @@ public class ParserContext implements Serializable {
 
   private Map<String, Object> literals;
 
+  /**
+   * Switches the engine to sandboxed mode with a new configuration and returns it for setup. The calling thread
+   * can register imports and data types until it compiles or executes its first script; see
+   * {@link SandboxedParserConfiguration} for the life cycle.
+   */
   public static SandboxedParserConfiguration enableSandboxedMode() {
+    SandboxedParserConfiguration configuration = new SandboxedParserConfiguration();
+    sandboxedParserConfiguration = configuration;
     sandboxedMode = true;
-    sandboxedParserConfiguration = new SandboxedParserConfiguration();
-    return sandboxedParserConfiguration;
+    return configuration;
+  }
+
+  /**
+   * Switches the engine to sandboxed mode with a configuration that is already complete. The configuration is
+   * made read-only before it becomes visible to scripts, so there is no setup phase.
+   */
+  public static void enableSandboxedMode(SandboxedParserConfiguration configuration) {
+    if (configuration == null) {
+      throw new IllegalArgumentException("configuration is required");
+    }
+    configuration.freeze();
+    sandboxedParserConfiguration = configuration;
+    sandboxedMode = true;
+  }
+
+  /**
+   * Called when the current thread is about to execute a compiled script in sandboxed mode.
+   */
+  static void onSandboxedExecution() {
+    if (sandboxedMode) {
+      sharedSandboxedConfiguration();
+    }
   }
 
   public static void disableSandboxedMode() {
@@ -125,9 +157,22 @@ public class ParserContext implements Serializable {
     sandboxedParserConfiguration = null;
   }
 
+  /**
+   * The configuration shared by all sandboxed scripts. Handing it to a parser context means a script is about to
+   * be compiled, so from this point on the configuration is read-only (for the thread that is still setting it
+   * up: from the moment that thread gets here itself).
+   */
+  private static SandboxedParserConfiguration sharedSandboxedConfiguration() {
+    SandboxedParserConfiguration configuration = sandboxedParserConfiguration;
+    if (configuration != null) {
+      configuration.onScriptUse();
+    }
+    return configuration;
+  }
+
   public ParserContext() {
     if (sandboxedMode) {
-      parserConfiguration = sandboxedParserConfiguration;
+      parserConfiguration = sharedSandboxedConfiguration();
     } else {
       parserConfiguration = new ParserConfiguration();
     }
@@ -145,7 +190,7 @@ public class ParserContext implements Serializable {
 
   public ParserContext(ParserConfiguration parserConfiguration) {
     if (sandboxedMode) {
-      this.parserConfiguration = sandboxedParserConfiguration;
+      this.parserConfiguration = sharedSandboxedConfiguration();
     } else {
       this.parserConfiguration = parserConfiguration;
     }
@@ -165,7 +210,7 @@ public class ParserContext implements Serializable {
   public ParserContext(Map<String, Object> imports, Map<String, Interceptor> interceptors, String sourceFile) {
     this.sourceFile = sourceFile;
     if (sandboxedMode) {
-      this.parserConfiguration = sandboxedParserConfiguration;
+      this.parserConfiguration = sharedSandboxedConfiguration();
     } else {
       this.parserConfiguration = new ParserConfiguration(imports, interceptors);
     }
@@ -406,6 +451,9 @@ public class ParserContext implements Serializable {
    * @param packageName A fully qualified package (eg. <tt>java.util.concurrent</tt>).
    */
   public void addPackageImport(String packageName) {
+    if (sandboxedMode) {
+      throw new UnsupportedOperationException("Import is forbidden!");
+    }
     parserConfiguration.addPackageImport(packageName);
   }
 
@@ -1170,20 +1218,195 @@ public class ParserContext implements Serializable {
     return this;
   }
 
+  public static boolean isSandboxedMode() {
+    return sandboxedMode;
+  }
+
+  /**
+   * In sandboxed mode a property access must never evaluate to a reflective handle
+   * ({@code java.lang.reflect.Method}). Such values are not callable from TBEL anyway and only
+   * serve as a stepping stone to {@code Method.invoke}.
+   */
+  public static boolean isMethodReferenceAllowed() {
+    return !sandboxedMode;
+  }
+
   public boolean isMethodAllowed(Method method) {
-    if (sandboxedMode) {
-      String clazzName = method.getDeclaringClass().getSimpleName();
-      boolean allowed = !(SandboxedClassLoader.forbiddenMethodsClasses.contains(clazzName) || SandboxedClassLoader.forbiddenMethods.contains(method));
-      if (!allowed) {
-        Object o = getImports().get(method.getName());
-        if (o instanceof MethodStub) {
-          MethodStub ms = (MethodStub) o;
-          allowed = ms.getMethod().equals(method);
-        }
-      }
-      return allowed;
-    } else {
+    return isMethodCallAllowed(method, method);
+  }
+
+  /**
+   * Same decision as {@link #isMethodAllowed(Method)}, for code that has no parser context at hand (property
+   * lookups, cached accessors). In sandboxed mode every parser context uses the one shared configuration, so
+   * the answer is the same.
+   */
+  public static boolean isMethodCallAllowed(Method method) {
+    return isMethodCallAllowed(method, method);
+  }
+
+  /**
+   * The one place where the engine decides whether a sandboxed script may call a method; every other check
+   * delegates here. The rules are in {@link SandboxedClassLoader#isMethodForbidden(Method, Method)}; a method the
+   * embedding application registered as a static import is allowed regardless.
+   *
+   * @param resolved the method found on the receiver's class
+   * @param target   {@code resolved} as declared by the public type (see
+   *                 {@link ParseTools#getWidenedTarget(Class, Method)}), or {@code resolved} itself. The decision is
+   *                 made for the pair; which of the two is invoked afterwards is decided by
+   *                 {@code invocationTarget}, by what reflection can reach
+   */
+  public static boolean isMethodCallAllowed(Method resolved, Method target) {
+    if (!sandboxedMode) {
       return true;
     }
+    if (!SandboxedClassLoader.isMethodForbidden(resolved, target)) {
+      return true;
+    }
+    if (target == null) {
+      return false;
+    }
+    SandboxedParserConfiguration configuration = sandboxedParserConfiguration;
+    if (configuration == null) {
+      return false;
+    }
+    Object o = configuration.getImports().get(target.getName());
+    return o instanceof MethodStub && target.equals(((MethodStub) o).getMethod());
+  }
+
+  /**
+   * Decision for a method that was just resolved on {@code cls}, the class of the receiver. Outside sandboxed
+   * mode this costs nothing: the hierarchy is only walked when there is a decision to make.
+   */
+  public static boolean isResolvedMethodAllowed(Class cls, Method resolved) {
+    return !sandboxedMode || (resolved != null && isMethodCallAllowed(resolved, ParseTools.getWidenedTarget(cls, resolved)));
+  }
+
+  /**
+   * The getter or setter to invoke for a property accessor that was found on {@code cls}.
+   *
+   * @return {@code accessor} itself outside sandboxed mode; in sandboxed mode the method to invoke (as declared
+   * by the public type when that type is reachable), or {@code null} if the script may not call it
+   */
+  public static Method resolvePropertyAccessor(Class cls, Method accessor) {
+    if (!sandboxedMode || accessor == null) {
+      return accessor;
+    }
+    Method target = ParseTools.getWidenedTarget(cls, accessor);
+    return isMethodCallAllowed(accessor, target) ? invocationTarget(accessor, target) : null;
+  }
+
+  /**
+   * The decision is made for the pair; which of the two is invoked is a matter of accessibility only. The
+   * widened method is used when the type that declares it can be reached by reflection (a public class in an
+   * exported package, as {@code java.util.TimeZone} for a JDK implementation class). Otherwise the resolved
+   * method is kept, as outside sandboxed mode: a public bean may well get its accessors from a non-public
+   * interface or base class.
+   */
+  private static Method invocationTarget(Method resolved, Method target) {
+    if (target == resolved) {
+      return resolved;
+    }
+    Class<?> declaringClass = target.getDeclaringClass();
+    boolean reachable = Modifier.isPublic(declaringClass.getModifiers())
+        && declaringClass.getModule().isExported(declaringClass.getPackageName());
+    return reachable ? target : resolved;
+  }
+
+  /**
+   * In sandboxed mode a property assignment may only call an instance setter that the script could also call
+   * directly. Static setters change state that is shared by the whole JVM and are never reached through an
+   * assignment.
+   *
+   * @return the setter to invoke, or {@code null} if a sandboxed script may not reach it through an assignment
+   */
+  public static Method resolveSetter(Class cls, Method setter) {
+    if (!sandboxedMode) {
+      return setter;
+    }
+    if (setter == null || Modifier.isStatic(setter.getModifiers())) {
+      return null;
+    }
+    return resolvePropertyAccessor(cls, setter);
+  }
+
+  /**
+   * A cached call site met a receiver of another class and resolved its method again. The newly resolved method
+   * is subject to the same policy as a method resolved on first use.
+   *
+   * @return the method to invoke: in sandboxed mode the widened target when its declaring type is reachable
+   * @throws PropertyAccessException if a sandboxed script may not call the method
+   */
+  public static Method checkRedispatch(Method resolved) {
+    if (resolved == null || !sandboxedMode) {
+      return resolved;
+    }
+    Method target = ParseTools.getWidenedTarget(resolved);
+    if (!isMethodCallAllowed(resolved, target)) {
+      throw methodRefused(resolved);
+    }
+    return invocationTarget(resolved, target);
+  }
+
+  /**
+   * Decisions of {@link #checkReceiver(Method, Object)} per receiver class: {@code true} if the class's own
+   * implementation of the cached method is forbidden by the static rules.
+   */
+  private static final ClassValue<Map<Method, Boolean>> RECEIVER_DECISIONS = new ClassValue<Map<Method, Boolean>>() {
+    @Override
+    protected Map<Method, Boolean> computeValue(Class<?> type) {
+      return new ConcurrentHashMap<>();
+    }
+  };
+
+  /**
+   * A cached call site holds the method that was resolved and approved for its first receiver. That method is
+   * usually declared by an interface or a superclass, so the JVM will happily invoke it on any later receiver of
+   * that type, and what then runs is the later receiver's own implementation. Before every invocation the
+   * cached accessors therefore ask for the decision that a first use on this receiver's class would get.
+   *
+   * @throws PropertyAccessException if a sandboxed script may not call the method on this receiver
+   */
+  public static void checkReceiver(Method method, Object receiver) {
+    if (!sandboxedMode || receiver == null || method == null || Modifier.isStatic(method.getModifiers())) {
+      return;
+    }
+    Class<?> cls = receiver.getClass();
+    if (cls == method.getDeclaringClass()) {
+      // exactly the method that was approved when the call site was resolved
+      return;
+    }
+    Map<Method, Boolean> decisions = RECEIVER_DECISIONS.get(cls);
+    Boolean forbidden = decisions.get(method);
+    Method resolved = null;
+    if (forbidden == null) {
+      try {
+        resolved = cls.getMethod(method.getName(), method.getParameterTypes());
+      }
+      catch (NoSuchMethodException e) {
+        // not a method of this receiver: the invocation fails and the re-dispatch path decides
+        return;
+      }
+      forbidden = SandboxedClassLoader.isMethodForbidden(resolved, ParseTools.getWidenedTarget(cls, resolved));
+      decisions.put(method, forbidden);
+    }
+    if (forbidden) {
+      if (resolved == null) {
+        try {
+          resolved = cls.getMethod(method.getName(), method.getParameterTypes());
+        }
+        catch (NoSuchMethodException e) {
+          throw methodRefused(method);
+        }
+      }
+      // the static rules say no; a registered static import is the only exception, and it is not cached
+      if (!isMethodCallAllowed(resolved, ParseTools.getWidenedTarget(cls, resolved))) {
+        throw methodRefused(resolved);
+      }
+    }
+  }
+
+  private static PropertyAccessException methodRefused(Method method) {
+    return new PropertyAccessException("unable to resolve method: " + method.getDeclaringClass().getName()
+        + "." + method.getName(), null, 0, null);
   }
 }

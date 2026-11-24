@@ -52,12 +52,16 @@ public class PropertyTools {
     return true;
   }
 
+  /**
+   * Setters that a sandboxed script must not reach through a property assignment are skipped, see
+   * {@link ParserContext#resolveSetter(Class, Method)}; this is the single lookup used by all assignment paths.
+   */
   public static Method getSetter(Class clazz, String property) {
     property = ReflectionUtil.getSetter(property);
 
     for (Method meth : clazz.getMethods()) {
       if ((meth.getModifiers() & PUBLIC) != 0 && meth.getParameterTypes().length == 1
-          && property.equals(meth.getName())) {
+          && property.equals(meth.getName()) && (meth = ParserContext.resolveSetter(clazz, meth)) != null) {
         return meth;
       }
     }
@@ -72,7 +76,8 @@ public class PropertyTools {
     for (Method meth : clazz.getMethods()) {
       if ((meth.getModifiers() & PUBLIC) != 0 && meth.getParameterTypes().length == 1 &&
           (property.equals(meth.getName()) || simple.equals(meth.getName()))
-          && (type == null || canConvert(meth.getParameterTypes()[0], type))) {
+          && (type == null || canConvert(meth.getParameterTypes()[0], type))
+          && (meth = ParserContext.resolveSetter(clazz, meth)) != null) {
         return meth;
       }
     }

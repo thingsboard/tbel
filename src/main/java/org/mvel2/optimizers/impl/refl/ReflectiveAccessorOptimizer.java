@@ -597,8 +597,10 @@ public class ReflectiveAccessorOptimizer extends AbstractOptimizer implements Ac
     if (member != null && classRef && (member.getModifiers() & Modifier.STATIC) == 0) {
       member = null;
     }
-    if (member instanceof Method && pCtx != null && !pCtx.isMethodAllowed((Method) member)) {
-      member = null;
+    if (member instanceof Method) {
+      // in sandboxed mode: the getter to invoke (as the public type declares it where reflection can reach
+      // that, otherwise as resolved), or null if the script may not call it
+      member = ParserContext.resolvePropertyAccessor(cls, (Method) member);
     }
 
     Object o;
@@ -693,6 +695,9 @@ public class ReflectiveAccessorOptimizer extends AbstractOptimizer implements Ac
     else {
       Object tryStaticMethodRef = tryStaticAccess();
       staticAccess = true;
+      if (tryStaticMethodRef instanceof Method && !ParserContext.isMethodReferenceAllowed()) {
+        throw new PropertyAccessException("could not access: " + property, expr, start, pCtx);
+      }
       if (tryStaticMethodRef != null) {
         if (tryStaticMethodRef instanceof Class) {
           addAccessorNode(new StaticReferenceAccessor(tryStaticMethodRef));
@@ -711,7 +716,14 @@ public class ReflectiveAccessorOptimizer extends AbstractOptimizer implements Ac
         Class c = (Class) ctx;
         for (Method m : c.getMethods()) {
           if (property.equals(m.getName())) {
-            if (pCtx!=null&& pCtx.getParserConfiguration()!=null?pCtx.getParserConfiguration().isAllowNakedMethCall():MVEL.COMPILER_OPT_ALLOW_NAKED_METH_CALL) {
+            if (pCtx != null && !pCtx.isMethodAllowed(m)) {
+              continue;
+            }
+            boolean nakedCall = pCtx!=null&& pCtx.getParserConfiguration()!=null?pCtx.getParserConfiguration().isAllowNakedMethCall():MVEL.COMPILER_OPT_ALLOW_NAKED_METH_CALL;
+            if (!nakedCall && !ParserContext.isMethodReferenceAllowed()) {
+              continue;
+            }
+            if (nakedCall) {
               o = m.invoke(null, EMPTY_OBJ_ARR);
               if (hasNullMethodHandler()) {
                 addAccessorNode(new MethodAccessorNH(m, new ExecutableStatement[0], getNullMethodHandler()));
@@ -1123,7 +1135,9 @@ public class ReflectiveAccessorOptimizer extends AbstractOptimizer implements Ac
         parameterTypes = m.getParameterTypes();
       }
     }
-    if (m != null && pCtx != null && !pCtx.isMethodAllowed(m)) {
+    // The policy looks at the method as it was resolved and as the public type declares it; a compiled method
+    // call invokes the latter, see SandboxedClassLoader.isMethodForbidden(Method, Method).
+    if (m != null && !ParserContext.isResolvedMethodAllowed(cls, m)) {
       m = null;
     }
 
@@ -1181,6 +1195,8 @@ public class ReflectiveAccessorOptimizer extends AbstractOptimizer implements Ac
     args = updateArgsWithExecutionContextIfNeeded(parameterTypes, args, this.ctx);
     Object o = null;
     if (ctx != null) {
+      // the method was resolved on the declared type of the previous step; the receiver may be a subtype
+      ParserContext.checkReceiver(method, ctx);
       args = checkInvocation(method, ctx, args);
       o = method.invoke(ctx, normalizeArgsForVarArgs(parameterTypes, args, m.isVarArgs()));
     }

@@ -558,6 +558,10 @@ public class PropertyAccessor {
     return getBeanProperty(ctx, property);
   }
 
+  private boolean isMethodAllowed(Method method) {
+    return ParserContext.isMethodCallAllowed(method);
+  }
+
   private Object getBeanProperty(Object ctx, String property)
       throws IllegalAccessException, InvocationTargetException {
 
@@ -591,6 +595,12 @@ public class PropertyAccessor {
 
       if (member == null) {
         addReadCache(cls, property.hashCode(), member = getFieldOrAccessor(cls, property));
+      }
+
+      if (member instanceof Method) {
+        // in sandboxed mode: the getter to invoke (as the public type declares it where reflection can reach
+        // that, otherwise as resolved), or null if the script may not call it
+        member = ParserContext.resolvePropertyAccessor(cls, (Method) member);
       }
 
       if (member instanceof Method) {
@@ -640,8 +650,14 @@ public class PropertyAccessor {
         Class c = (Class) ctx;
         for (Method m : c.getMethods()) {
           if (property.equals(m.getName())) {
+            if (!isMethodAllowed(m)) {
+              continue;
+            }
             if (pCtx!=null&& pCtx.getParserConfiguration()!=null?pCtx.getParserConfiguration().isAllowNakedMethCall():MVEL.COMPILER_OPT_ALLOW_NAKED_METH_CALL) {
               return m.invoke(ctx, EMPTY_OBJ_ARR);
+            }
+            if (!ParserContext.isMethodReferenceAllowed()) {
+              continue;
             }
             return m;
           }
@@ -663,6 +679,10 @@ public class PropertyAccessor {
     }
 
     Object tryStatic = tryStaticAccess();
+
+    if (tryStatic instanceof Method && !ParserContext.isMethodReferenceAllowed()) {
+      tryStatic = null;
+    }
 
     if (tryStatic != null) {
       if (tryStatic instanceof Class || tryStatic instanceof Method) return tryStatic;
@@ -960,6 +980,10 @@ public class PropertyAccessor {
       }
     }
 
+    if (m != null && !ParserContext.isResolvedMethodAllowed(cls, m)) {
+      m = null;
+    }
+
     if (ctx instanceof PrototypalFunctionInstance) {
       final VariableResolverFactory funcCtx = ((PrototypalFunctionInstance) ctx).getResolverFactory();
       Object prop = funcCtx.getVariableResolver(name).getValue();
@@ -994,6 +1018,8 @@ public class PropertyAccessor {
        * Invoke the target method and return the response.
        */
       currType = toNonPrimitiveType(m.getReturnType());
+      // the method was resolved on the declared type of the previous step; the receiver may be a subtype
+      ParserContext.checkReceiver(m, ctx);
       try {
         return m.invoke(ctx, normalizeArgsForVarArgs(parameterTypes, args, m.isVarArgs()));
       }

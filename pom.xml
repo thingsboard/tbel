@@ -5,7 +5,7 @@
     <groupId>org.thingsboard</groupId>
     <artifactId>tbel</artifactId>
     <packaging>jar</packaging>
-    <version>1.2.12</version>
+    <version>1.2.13</version>
 
     <name>tbel</name>
     <url>https://thingsboard.io/</url>
@@ -128,6 +128,7 @@
                                 <include>src/main/java/org/mvel2/SandboxedParserConfiguration.java</include>
                                 <include>src/main/java/org/mvel2/ScriptExecutionStoppedException.java</include>
                                 <include>src/main/java/org/mvel2/ScriptMemoryOverflowException.java</include>
+                                <include>src/main/java/org/mvel2/ScriptStackOverflowException.java</include>
                                 <include>src/main/java/org/mvel2/ast/BreakNode.java</include>
                                 <include>src/main/java/org/mvel2/ast/HasStatement.java</include>
                                 <include>src/main/java/org/mvel2/ast/SwitchNode.java</include>
@@ -137,6 +138,7 @@
                                 <include>src/test/java/org/mvel2/tests/core/DynamicOptimizerPostIncrementTest.java</include>
                                 <include>src/test/java/org/mvel2/tests/core/TbExpressionsTest.java</include>
                                 <include>src/test/java/org/mvel2/tests/core/TbMapArrayListSetExpressionsTest.java</include>
+                                <include>src/test/java/org/mvel2/tests/core/TbSandbox*Test.java</include>
                                 <include>src/test/java/org/mvel2/tests/core/TbUtilsExpressionsTest.java</include>
                             </includes>
                         </licenseSet>

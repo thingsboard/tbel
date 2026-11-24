@@ -50,6 +50,14 @@ public class TbExpressionsTest extends TestCase {
         ParserContext.disableSandboxedMode();
     }
 
+    /**
+     * The sandboxed configuration is read-only once a script has been compiled, so a test that needs to register
+     * something after running a script starts over with a new configuration, as an application restart would.
+     */
+    private void reconfigureSandbox() {
+        this.parserConfig = ParserContext.enableSandboxedMode();
+    }
+
     public void testCreateSingleValueArray() {
         Object res = executeScript("m = {5}; m");
         assertTrue(res instanceof List);
@@ -622,8 +630,8 @@ public class TbExpressionsTest extends TestCase {
     public void testForbidImport() {
         try {
             executeScript("import java.util.HashMap; m = new HashMap(); m.put('t', 10); m");
-            fail("Should throw UnsupportedOperationException");
-        } catch (UnsupportedOperationException e) {
+            fail("Should throw CompileException");
+        } catch (CompileException e) {
             assertTrue(e.getMessage().contains("Import is forbidden!"));
         }
     }
@@ -742,6 +750,7 @@ public class TbExpressionsTest extends TestCase {
         } catch (CompileException e) {
             Assert.assertTrue(e.getMessage().contains("unresolvable property or identifier: MyTestUtil"));
         }
+        reconfigureSandbox();
         this.parserConfig.addImport("MyTestUtil", TestUtil.class);
         Object res = executeScript("MyTestUtil.getFoo({foo: 'foo-bar'})");
         assertEquals("foo-bar", res);
@@ -775,25 +784,30 @@ public class TbExpressionsTest extends TestCase {
         } catch (CompileException e) {
             Assert.assertTrue(e.getMessage().contains("function not found: currentTimeMillis"));
         }
+        reconfigureSandbox();
         this.parserConfig.addImport("currentTimeMillis", new MethodStub(System.class.getMethod("currentTimeMillis")));
         res = executeScript("currentTimeMillis()");
         assertTrue(res instanceof Long);
         assertEquals(System.currentTimeMillis() / 100, ((long) res) / 100);
+        reconfigureSandbox();
         this.parserConfig.addImport("methodWithExecContext", new MethodStub(TestUtil.class.getMethod("methodWithExecContext",
                 String.class, Object.class, ExecutionContext.class)));
         res = executeScript("methodWithExecContext('key1', 'val1')");
         assertTrue(res instanceof Map);
         assertEquals("val1", ((Map) res).get("key1"));
+        reconfigureSandbox();
         this.parserConfig.addImport("methodWithExecContext2", new MethodStub(TestUtil.class.getMethod("methodWithExecContext2",
                 String.class, ExecutionContext.class, Object.class)));
         res = executeScript("methodWithExecContext2('key2', 'val2')");
         assertTrue(res instanceof Map);
         assertEquals("val2", ((Map) res).get("key2"));
+        reconfigureSandbox();
         this.parserConfig.addImport("methodWithExecContext3", new MethodStub(TestUtil.class.getMethod("methodWithExecContext3",
                 ExecutionContext.class, String.class, Object.class)));
         res = executeScript("methodWithExecContext3('key3', 'val3')");
         assertTrue(res instanceof Map);
         assertEquals("val3", ((Map) res).get("key3"));
+        reconfigureSandbox();
         this.parserConfig.addImport("methodWithExecContextVarArgs", new MethodStub(TestUtil.class.getMethod("methodWithExecContextVarArgs",
                 ExecutionContext.class, Object[].class)));
         res = executeScript("methodWithExecContextVarArgs('a1', 'a2', 'a3', 'a4', 'a5')");
@@ -809,6 +823,7 @@ public class TbExpressionsTest extends TestCase {
         } catch (CompileException e) {
             Assert.assertTrue(e.getMessage().contains("could not resolve class: MyTest"));
         }
+        reconfigureSandbox();
         this.parserConfig.registerDataType("MyTest", MyTestClass.class, val -> (long) val.getValue().getBytes().length);
         Object res = executeScript("var t = new MyTest('test val'); t");
         assertTrue(res instanceof MyTestClass);

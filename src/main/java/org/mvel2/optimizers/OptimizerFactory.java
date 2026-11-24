@@ -29,6 +29,8 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.mvel2.ParserContext;
+
 public class OptimizerFactory {
   public static String DYNAMIC = "dynamic";
   public static String SAFE_REFLECTIVE = "reflective";
@@ -69,7 +71,18 @@ public class OptimizerFactory {
       setDefaultOptimizer(DYNAMIC);
   }
 
+  /**
+   * Only the reflective optimizer enforces the sandbox method/class restrictions. The ASM JIT (also reached through
+   * the dynamic optimizer) emits direct bytecode calls without any of those checks, so it must never be used for
+   * sandboxed scripts, whatever optimizer the embedding application selected.
+   */
+  private static AccessorOptimizer sandboxedOverride() {
+    return ParserContext.isSandboxedMode() ? new ReflectiveAccessorOptimizer() : null;
+  }
+
   public static AccessorOptimizer getDefaultAccessorCompiler() {
+    AccessorOptimizer sandboxed = sandboxedOverride();
+    if (sandboxed != null) return sandboxed;
     try {
       return accessorCompilers.get(defaultOptimizer).getClass().newInstance();
     }
@@ -79,6 +92,8 @@ public class OptimizerFactory {
   }
 
   public static AccessorOptimizer getAccessorCompiler(String name) {
+    AccessorOptimizer sandboxed = sandboxedOverride();
+    if (sandboxed != null) return sandboxed;
     try {
       return accessorCompilers.get(name).getClass().newInstance();
     }
@@ -88,6 +103,8 @@ public class OptimizerFactory {
   }
 
   public static AccessorOptimizer getThreadAccessorOptimizer() {
+    AccessorOptimizer sandboxed = sandboxedOverride();
+    if (sandboxed != null) return sandboxed;
     if (threadOptimizer.get() == null) {
       threadOptimizer.set(getDefaultAccessorCompiler().getClass());
     }

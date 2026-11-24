@@ -18,6 +18,7 @@
  */
 package org.mvel2.optimizers.impl.refl.nodes;
 
+import org.mvel2.ParserContext;
 import org.mvel2.CompileException;
 import org.mvel2.compiler.AccessorNode;
 import org.mvel2.integration.PropertyHandler;
@@ -36,12 +37,13 @@ public class GetterAccessorNH implements AccessorNode {
   public static final Object[] EMPTY = new Object[0];
 
   public Object getValue(Object ctx, Object elCtx, VariableResolverFactory vars) {
+    ParserContext.checkReceiver(method, ctx);
     try {
       return nullHandle(method.getName(), method.invoke(ctx, EMPTY), ctx, elCtx, vars);
     }
     catch (IllegalArgumentException e) {
       if (ctx != null && method.getDeclaringClass() != ctx.getClass()) {
-        Method o = getBestCandidate(EMPTY, method.getName(), ctx.getClass(), ctx.getClass().getMethods(), true);
+        Method o = ParserContext.checkRedispatch(getBestCandidate(EMPTY, method.getName(), ctx.getClass(), ctx.getClass().getMethods(), true));
         if (o != null) {
           return executeOverrideTarget(o, ctx, elCtx, vars);
         }
@@ -81,6 +83,7 @@ public class GetterAccessorNH implements AccessorNode {
   }
 
   public Object setValue(Object ctx, Object elCtx, VariableResolverFactory vars, Object value) {
+    ParserContext.checkReceiver(method, ctx);
     try {
       Object v = method.invoke(ctx, EMPTY);
       if (v == null) v = nullHandler.getProperty(method.getName(), ctx, vars);

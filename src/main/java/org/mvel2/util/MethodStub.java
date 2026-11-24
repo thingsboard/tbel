@@ -30,6 +30,8 @@ public class MethodStub implements StaticStub {
 
   private transient Method method;
 
+  private boolean sealed;
+
   public MethodStub(Method method) {
     this.classReference = method.getDeclaringClass();
     this.name = method.getName();
@@ -44,7 +46,29 @@ public class MethodStub implements StaticStub {
     return classReference;
   }
 
+  /**
+   * Resolves the target method and makes this stub immutable. A stub registered in a configuration that is
+   * shared between scripts is sealed, so that it keeps calling the method it was registered for.
+   */
+  public void seal() {
+    if (!sealed) {
+      getMethod();
+      sealed = true;
+    }
+  }
+
+  public boolean isSealed() {
+    return sealed;
+  }
+
+  private void checkMutable() {
+    if (sealed) {
+      throw new IllegalStateException("Method stub is read-only!");
+    }
+  }
+
   public void setClassReference(Class classReference) {
+    checkMutable();
     this.classReference = classReference;
   }
 
@@ -53,6 +77,7 @@ public class MethodStub implements StaticStub {
   }
 
   public void setMethodName(String methodName) {
+    checkMutable();
     this.name = methodName;
   }
 

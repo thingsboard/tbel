@@ -34,6 +34,8 @@ public class ExecutionContext implements Serializable {
 
     private final int maxAllowedMethodArgs;
 
+    private final int maxAllowedStackDepth;
+
     private int stackLevel = 0;
 
     private long memorySize = 0;
@@ -51,9 +53,18 @@ public class ExecutionContext implements Serializable {
     }
 
     public ExecutionContext(SandboxedParserConfiguration parserConfig, long maxAllowedMemory, int maxAllowedMethodArgs) {
+        this(parserConfig, maxAllowedMemory, maxAllowedMethodArgs, -1);
+    }
+
+    /**
+     * @param maxAllowedStackDepth maximum nesting of script function calls; values {@code <= 0} disable the limit
+     *                             (a JVM stack overflow is still reported as a {@link ScriptStackOverflowException}).
+     */
+    public ExecutionContext(SandboxedParserConfiguration parserConfig, long maxAllowedMemory, int maxAllowedMethodArgs, int maxAllowedStackDepth) {
         this.parserConfig = parserConfig;
         this.maxAllowedMemory = maxAllowedMemory;
         this.maxAllowedMethodArgs = maxAllowedMethodArgs;
+        this.maxAllowedStackDepth = maxAllowedStackDepth;
     }
 
     public void checkExecution() {
@@ -78,7 +89,11 @@ public class ExecutionContext implements Serializable {
     }
 
     public void enterStack() {
+        // Increment first: callers always pair enterStack() with leaveStack() in a finally block.
         this.stackLevel++;
+        if (maxAllowedStackDepth > 0 && this.stackLevel > maxAllowedStackDepth) {
+            throw new ScriptStackOverflowException("Maximum call stack depth exceeded (" + this.stackLevel + " > " + maxAllowedStackDepth + ")!");
+        }
     }
 
     public void leaveStack() {

@@ -563,6 +563,12 @@ public class AbstractParser implements Parser, Serializable {
                 return lastNode = new IsDef(expr, st, cursor - st, pCtx);
 
               case IMPORT:
+                // The parser configuration is shared by all sandboxed scripts, so a script must not be able
+                // to import anything, in any form. Rejected before the import target is resolved or loaded.
+                if (ParserContext.isSandboxedMode()) {
+                  // an error of the script, like any other statement that cannot be compiled
+                  throw new CompileException("Import is forbidden!", expr, cursor);
+                }
                 st = cursor = trimRight(cursor);
                 captureToEOS();
                 ImportNode importNode = new ImportNode(expr, st, cursor - st, pCtx);
@@ -576,6 +582,10 @@ public class AbstractParser implements Parser, Serializable {
                 return lastNode = importNode;
 
               case IMPORT_STATIC:
+                if (ParserContext.isSandboxedMode()) {
+                  // an error of the script, like any other statement that cannot be compiled
+                  throw new CompileException("Import is forbidden!", expr, cursor);
+                }
                 st = cursor = trimRight(cursor);
                 captureToEOS();
                 StaticImportNode staticImportNode = new StaticImportNode(expr, st, trimLeft(cursor) - st, pCtx);
@@ -1964,6 +1974,11 @@ public class AbstractParser implements Parser, Serializable {
         return lastNode = proto;
       }
       case STACKLANG: {
+        // stacklang instructions (invoke, getfield, storefield, ldtype) use raw reflection and bypass
+        // every sandbox check, so the construct is not available to sandboxed scripts.
+        if (ParserContext.isSandboxedMode()) {
+          throw new CompileException("stacklang is forbidden!", expr, cursor);
+        }
         if (expr[cursor = nextNonBlank()] != '{') {
           throw new CompileException("expected '{' but found: " + expr[cursor], expr, cursor);
         }
